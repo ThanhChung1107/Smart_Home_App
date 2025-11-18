@@ -21,6 +21,30 @@ class Device {
     required this.createdAt,
   });
 
+  // THÊM METHOD copyWith VÀO ĐÂY
+  Device copyWith({
+    String? id,
+    String? name,
+    String? deviceType,
+    String? room,
+    bool? isOn,
+    Map<String, dynamic>? status,
+    String? ipAddress,
+    DateTime? createdAt,
+  }) {
+    return Device(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      deviceType: deviceType ?? this.deviceType,
+      room: room ?? this.room,
+      isOn: isOn ?? this.isOn,
+      status: status ?? this.status,
+      ipAddress: ipAddress ?? this.ipAddress,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  // Các method khác giữ nguyên...
   factory Device.fromJson(Map<String, dynamic> json) {
     print('📋 Device JSON: $json'); // Debug
 
@@ -36,7 +60,7 @@ class Device {
     );
   }
 
-  // Helper method để xử lý string null
+  // Các helper methods và getters khác giữ nguyên...
   static String _parseString(dynamic value) {
     if (value == null) return '';
     if (value is String) return value;
@@ -119,7 +143,6 @@ class Device {
     }
   }
 
-  // Thêm method toJson nếu cần
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -129,48 +152,6 @@ class Device {
       'is_on': isOn,
       'status': status,
       'ip_address': ipAddress,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-}
-// Thêm vào cuối file models/device.dart
-class DeviceLog {
-  final String id;
-  final String action;
-  final Map<String, dynamic> oldStatus;
-  final Map<String, dynamic> newStatus;
-  final String user;
-  final DateTime createdAt;
-
-  DeviceLog({
-    required this.id,
-    required this.action,
-    required this.oldStatus,
-    required this.newStatus,
-    required this.user,
-    required this.createdAt,
-  });
-
-  factory DeviceLog.fromJson(Map<String, dynamic> json) {
-    print('📋 DeviceLog JSON: $json'); // Debug
-
-    return DeviceLog(
-      id: Device._parseString(json['id']),
-      action: Device._parseString(json['action']),
-      oldStatus: Device._parseStatus(json['old_status']),
-      newStatus: Device._parseStatus(json['new_status']),
-      user: Device._parseString(json['user']),
-      createdAt: Device._parseDateTime(json['created_at']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'action': action,
-      'old_status': oldStatus,
-      'new_status': newStatus,
-      'user': user,
       'created_at': createdAt.toIso8601String(),
     };
   }

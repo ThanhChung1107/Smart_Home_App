@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:PBL4_smart_home/services/device_service.dart';
+import 'package:PBL4_smart_home/models/device.dart'; // CHỈ IMPORT, KHÔNG ĐỊNH NGHĨA LẠI
 
 class DevicesScreen extends StatefulWidget {
   @override
@@ -8,193 +8,120 @@ class DevicesScreen extends StatefulWidget {
 }
 
 class _DevicesScreenState extends State<DevicesScreen> {
-  String _selectedRoom = 'all';
-  List<Device> _devices = [];
+  List<Device> _devices = []; // Sử dụng Device từ models/device.dart
   bool _isLoading = false;
-
-  // ⚠️ THAY ĐỔI IP CỦA BẠN TẠI ĐÂY
-  static const String ESP_IP = "172.20.10.2";
-  static const String BASE_URL = "http://$ESP_IP";
+  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _loadDevices();
+    _loadDevicesFromAPI();
   }
 
-  void _loadDevices() {
+  Future<void> _loadDevicesFromAPI() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
-    Future.delayed(Duration(seconds: 1), () {
+    print('🔄 Loading devices from API...');
+
+    final result = await DeviceService.getDevices();
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result['success'] == true) {
       setState(() {
-        _devices = [
-          Device(
-            id: 'led1',
-            name: 'Đèn Phòng Khách',
-            deviceType: 'light',
-            typeName: 'Đèn LED',
-            room: 'living_room',
-            roomName: 'Phòng khách',
-            isOn: false,
-            icon: '💡',
-            status: {'brightness': 100},
-          ),
-          Device(
-            id: 'led2',
-            name: 'Đèn Phòng Ngủ',
-            deviceType: 'light',
-            typeName: 'Đèn LED',
-            room: 'bedroom',
-            roomName: 'Phòng ngủ',
-            isOn: false,
-            icon: '💡',
-            status: {'brightness': 100},
-          ),
-          Device(
-            id: 'fan',
-            name: 'Quạt Trần',
-            deviceType: 'fan',
-            typeName: 'Quạt',
-            room: 'living_room',
-            roomName: 'Phòng khách',
-            isOn: false,
-            icon: '🌀',
-            status: {'speed': 3},
-          ),
-          Device(
-            id: 'door',
-            name: 'Cửa Chính',
-            deviceType: 'door',
-            typeName: 'Cửa',
-            room: 'outside',
-            roomName: 'Bên ngoài',
-            isOn: false,
-            icon: '🚪',
-            status: {},
-          ),
-          Device(
-            id: 'dryer',
-            name: 'Cây Phơi',
-            deviceType: 'dryer',
-            typeName: 'Cây phơi',
-            room: 'outside',
-            roomName: 'Bên ngoài',
-            isOn: false,
-            icon: '👕',
-            status: {},
-          ),
-        ];
-        _isLoading = false;
+        _devices = List<Device>.from(result['devices']); // Cast rõ ràng
       });
-    });
-  }
+      print('✅ Đã tải ${_devices.length} thiết bị từ database');
+    } else {
+      setState(() {
+        _errorMessage = result['message'] ?? 'Lỗi không xác định';
+      });
+      print('❌ Lỗi tải thiết bị: $_errorMessage');
 
-  // 🔧 GỌI ĐÚNG ENDPOINT CỦA ESP8266
-  Future<Map<String, dynamic>> _controlDevice(String deviceId, String value) async {
-    try {
-      String endpoint = '';
-
-      // Xác định endpoint và parameters dựa trên device
-      switch (deviceId) {
-        case 'led1':
-          endpoint = '$BASE_URL/led1?state=$value';
-          break;
-        case 'led2':
-          endpoint = '$BASE_URL/led2?state=$value';
-          break;
-        case 'fan':
-          endpoint = '$BASE_URL/fan?speed=$value';
-          break;
-        case 'door':
-          endpoint = '$BASE_URL/door?action=$value';
-          break;
-        case 'dryer':
-          endpoint = '$BASE_URL/dry?action=$value';
-          break;
-        default:
-          return {
-            'success': false,
-            'message': 'Unknown device: $deviceId',
-          };
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tải thiết bị: $_errorMessage'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
-
-      print('🚀 Gọi API: $endpoint');
-
-      final response = await http.get(Uri.parse(endpoint))
-          .timeout(Duration(seconds: 5));
-
-      print('📨 Status: ${response.statusCode}');
-      print('📨 Body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 303) {
-        // ESP8266 trả về redirect 303 - vẫn coi là thành công
-        return {
-          'success': true,
-          'message': 'Lệnh đã gửi thành công',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Lỗi HTTP: ${response.statusCode}',
-        };
-      }
-    } catch (e) {
-      print('❌ Lỗi kết nối: $e');
-      return {
-        'success': false,
-        'message': 'Lỗi kết nối: $e',
-      };
     }
   }
 
-  // Bật/tắt thiết bị
   Future<void> _toggleDevice(Device device) async {
-    String value = '';
+    print('🎯 Điều khiển thiết bị: ${device.name}, ID: ${device.id}');
 
-    // Xác định giá trị gửi đi
-    switch (device.id) {
-      case 'led1':
-      case 'led2':
-        value = device.isOn ? '0' : '1';
+    String action = '';
+    Map<String, dynamic>? parameters = {};
+
+    switch (device.deviceType.toLowerCase()) {
+      case 'light':
+      case 'led':
+        action = device.isOn ? 'turn_off' : 'turn_on';
         break;
       case 'fan':
-        value = device.isOn ? '0' : '3'; // Tắt hoặc tốc độ 3
+        action = device.isOn ? 'turn_off' : 'turn_on';
+        parameters = {'speed': 3};
+        break;
+      case 'ac':
+        action = device.isOn ? 'turn_off' : 'turn_on';
+        parameters = {'temperature': 25};
+        break;
+      case 'socket':
+        action = device.isOn ? 'turn_off' : 'turn_on';
         break;
       case 'door':
-        value = device.isOn ? 'close' : 'open';
+        action = device.isOn ? 'close' : 'open';
         break;
-      case 'dryer':
-        value = device.isOn ? 'in' : 'out';
-        break;
+      default:
+        action = device.isOn ? 'turn_off' : 'turn_on';
     }
 
-    print('🎯 Gửi lệnh: device=${device.id}, value=$value');
+    print('📤 Gửi lệnh: action=$action, parameters=$parameters');
 
-    final result = await _controlDevice(device.id, value);
+    final result = await DeviceService.controlDevice(
+      device.id,
+      action,
+      parameters: parameters.isNotEmpty ? parameters : null,
+    );
 
     if (result['success'] == true) {
       setState(() {
         final index = _devices.indexWhere((d) => d.id == device.id);
-        _devices[index] = _devices[index].copyWith(isOn: !device.isOn);
+        if (index != -1) {
+          _devices[index] = _devices[index].copyWith(
+            isOn: !device.isOn,
+            status: result['device']?['status'] ?? device.status,
+          );
+        }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${device.name} đã ${!device.isOn ? 'bật' : 'tắt'}'),
-          backgroundColor: Color(0xFF10B981),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${device.name} đã ${!device.isOn ? 'bật' : 'tắt'} thành công'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: ${result['message']}'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${result['message']}'),
+            backgroundColor: Color(0xFFEF4444),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -214,111 +141,90 @@ class _DevicesScreenState extends State<DevicesScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _loadDevicesFromAPI,
+            tooltip: 'Làm mới danh sách',
+          ),
+        ],
       ),
-      body: Column(
-        children: [
-          _buildRoomFilter(),
-          Expanded(
-            child: _isLoading
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF6366F1),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Đang tải thiết bị...',
-                    style: TextStyle(
-                      color: Color(0xFF6366F1),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+      body: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Color(0xFF6366F1),
               ),
-            )
-                : _buildDevicesList(_devices),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoomFilter() {
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Lọc theo phòng',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.3,
             ),
-          ),
-          SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildRoomChip('Tất cả', 'all'),
-                _buildRoomChip('Phòng khách', 'living_room'),
-                _buildRoomChip('Phòng ngủ', 'bedroom'),
-                _buildRoomChip('Nhà bếp', 'kitchen'),
-                _buildRoomChip('Phòng tắm', 'bathroom'),
-                _buildRoomChip('Bên ngoài', 'outside'),
-              ],
+            SizedBox(height: 16),
+            Text(
+              'Đang tải thiết bị...',
+              style: TextStyle(
+                color: Color(0xFF6366F1),
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    }
 
-  Widget _buildRoomChip(String label, String room) {
-    final isSelected = _selectedRoom == room;
-    return Padding(
-      padding: EdgeInsets.only(right: 10),
-      child: FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Color(0xFF64748B),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Lỗi tải thiết bị',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            SizedBox(height: 8),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                _errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadDevicesFromAPI,
+              child: Text('Thử lại'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF6366F1),
+              ),
+            ),
+          ],
         ),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            _selectedRoom = room;
-          });
-        },
-        backgroundColor: Color(0xFFE2E8F0),
-        selectedColor: Color(0xFF6366F1),
-        side: BorderSide(
-          color: isSelected ? Color(0xFF6366F1) : Colors.transparent,
-          width: 2,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-    );
+      );
+    }
+
+    return _buildDevicesList(_devices);
   }
 
   Widget _buildDevicesList(List<Device> devices) {
-    final filteredDevices = _selectedRoom == 'all'
-        ? devices
-        : devices.where((device) => device.room == _selectedRoom).toList();
-
-    if (filteredDevices.isEmpty) {
+    if (devices.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -338,9 +244,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
             ),
             SizedBox(height: 20),
             Text(
-              _selectedRoom == 'all'
-                  ? 'Không có thiết bị nào'
-                  : 'Không có thiết bị trong\n${_getRoomName(_selectedRoom)}',
+              'Không có thiết bị nào',
               style: TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 15,
@@ -353,30 +257,18 @@ class _DevicesScreenState extends State<DevicesScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, 20),
-      itemCount: filteredDevices.length,
-      itemBuilder: (context, index) {
-        return _buildDeviceCard(filteredDevices[index]);
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadDevicesFromAPI();
       },
+      child: ListView.builder(
+        padding: EdgeInsets.fromLTRB(20, 8, 20, 20),
+        itemCount: devices.length,
+        itemBuilder: (context, index) {
+          return _buildDeviceCard(devices[index]);
+        },
+      ),
     );
-  }
-
-  String _getRoomName(String roomKey) {
-    switch (roomKey) {
-      case 'living_room':
-        return 'phòng khách';
-      case 'bedroom':
-        return 'phòng ngủ';
-      case 'kitchen':
-        return 'nhà bếp';
-      case 'bathroom':
-        return 'phòng tắm';
-      case 'outside':
-        return 'bên ngoài';
-      default:
-        return roomKey;
-    }
   }
 
   Widget _buildDeviceCard(Device device) {
@@ -490,68 +382,30 @@ class _DevicesScreenState extends State<DevicesScreen> {
         onDeviceUpdated: (updatedDevice) {
           setState(() {
             final index = _devices.indexWhere((d) => d.id == updatedDevice.id);
-            _devices[index] = updatedDevice;
+            if (index != -1) {
+              _devices[index] = updatedDevice;
+            }
           });
         },
-        controlDevice: _controlDevice,
+        toggleDevice: _toggleDevice,
       ),
     );
   }
 }
 
-// Device Model
-class Device {
-  final String id;
-  final String name;
-  final String deviceType;
-  final String typeName;
-  final String room;
-  final String roomName;
-  final bool isOn;
-  final String icon;
-  final Map<String, dynamic> status;
-
-  Device({
-    required this.id,
-    required this.name,
-    required this.deviceType,
-    required this.typeName,
-    required this.room,
-    required this.roomName,
-    required this.isOn,
-    required this.icon,
-    required this.status,
-  });
-
-  Device copyWith({
-    bool? isOn,
-    Map<String, dynamic>? status,
-  }) {
-    return Device(
-      id: id,
-      name: name,
-      deviceType: deviceType,
-      typeName: typeName,
-      room: room,
-      roomName: roomName,
-      isOn: isOn ?? this.isOn,
-      icon: icon,
-      status: status ?? this.status,
-    );
-  }
-}
-
-// Device Detail Bottom Sheet
+// =====================================================
+// DeviceDetailBottomSheet - CHỈ SỬ DỤNG Device từ models
+// =====================================================
 class DeviceDetailBottomSheet extends StatefulWidget {
   final Device device;
   final Function(Device) onDeviceUpdated;
-  final Future<Map<String, dynamic>> Function(String, String) controlDevice;
+  final Future<void> Function(Device) toggleDevice;
 
   const DeviceDetailBottomSheet({
     Key? key,
     required this.device,
     required this.onDeviceUpdated,
-    required this.controlDevice,
+    required this.toggleDevice,
   }) : super(key: key);
 
   @override
@@ -568,46 +422,11 @@ class _DeviceDetailBottomSheetState extends State<DeviceDetailBottomSheet> {
   }
 
   Future<void> _toggleDevice() async {
-    String value = '';
-
-    switch (device.id) {
-      case 'led1':
-      case 'led2':
-        value = device.isOn ? '0' : '1';
-        break;
-      case 'fan':
-        value = device.isOn ? '0' : '3';
-        break;
-      case 'door':
-        value = device.isOn ? 'close' : 'open';
-        break;
-      case 'dryer':
-        value = device.isOn ? 'in' : 'out';
-        break;
-    }
-
-    final result = await widget.controlDevice(device.id, value);
-
-    if (result['success'] == true) {
-      setState(() {
-        device = device.copyWith(isOn: !device.isOn);
-      });
-      widget.onDeviceUpdated(device);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${device.name} đã ${device.isOn ? 'bật' : 'tắt'}'),
-          backgroundColor: Color(0xFF10B981),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: Color(0xFFEF4444),
-        ),
-      );
-    }
+    await widget.toggleDevice(device);
+    setState(() {
+      device = device.copyWith(isOn: !device.isOn);
+    });
+    widget.onDeviceUpdated(device);
   }
 
   @override

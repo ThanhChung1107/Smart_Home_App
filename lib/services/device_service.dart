@@ -45,6 +45,7 @@ class DeviceService {
     }
   }
 
+  // services/device_service.dart
   static Future<Map<String, dynamic>> controlDevice(
       String deviceId,
       String action, {
@@ -74,6 +75,27 @@ class DeviceService {
       return data;
     } catch (e) {
       print('❌ Control device error: $e');
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+// THÊM METHOD để lấy sensor data
+  static Future<Map<String, dynamic>> getSensorData() async {
+    try {
+      final headers = await AuthService.getHeaders();
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/sensor-data/'),
+        headers: headers,
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        return {'success': false, 'message': 'Lỗi server: ${response.statusCode}'};
+      }
+    } catch (e) {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
@@ -120,37 +142,37 @@ class DeviceService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
-  static Future<Map<String, dynamic>> getDeviceLogs(String deviceId) async {
-    try {
-      final headers = await AuthService.getHeaders();
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/devices/$deviceId/logs/'),
-        headers: headers,
-      ).timeout(Duration(seconds: 10));
-
-      print('📡 Logs Response status: ${response.statusCode}');
-      print('📦 Logs Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          List<DeviceLog> logs = [];
-          for (var logData in data['logs']) {
-            logs.add(DeviceLog.fromJson(logData));
-          }
-          print('✅ Loaded ${logs.length} logs');
-          return {'success': true, 'logs': logs};
-        } else {
-          return {'success': false, 'message': data['message']};
-        }
-      } else {
-        return {'success': false, 'message': 'Lỗi server: ${response.statusCode}'};
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Lỗi kết nối: $e'};
-    }
-  }
+  // static Future<Map<String, dynamic>> getDeviceLogs(String deviceId) async {
+  //   try {
+  //     final headers = await AuthService.getHeaders();
+  //
+  //     final response = await http.get(
+  //       Uri.parse('$baseUrl/api/devices/$deviceId/logs/'),
+  //       headers: headers,
+  //     ).timeout(Duration(seconds: 10));
+  //
+  //     print('📡 Logs Response status: ${response.statusCode}');
+  //     print('📦 Logs Response body: ${response.body}');
+  //
+  //     if (response.statusCode == 200) {
+  //       final data = json.decode(response.body);
+  //       if (data['success'] == true) {
+  //         List<DeviceLog> logs = [];
+  //         for (var logData in data['logs']) {
+  //           logs.add(DeviceLog.fromJson(logData));
+  //         }
+  //         print('✅ Loaded ${logs.length} logs');
+  //         return {'success': true, 'logs': logs};
+  //       } else {
+  //         return {'success': false, 'message': data['message']};
+  //       }
+  //     } else {
+  //       return {'success': false, 'message': 'Lỗi server: ${response.statusCode}'};
+  //     }
+  //   } catch (e) {
+  //     return {'success': false, 'message': 'Lỗi kết nối: $e'};
+  //   }
+  // }
 
   // THÊM METHOD getRealStatistics
   static Future<Map<String, dynamic>> getRealStatistics(String period) async {
