@@ -10,18 +10,20 @@
 
     <!-- CHO PHÉP IP CỤ THỂ -->
     <domain-config cleartextTrafficPermitted="true">
-        <!-- ESP32-CAM IP (mới) -->
-        <domain includeSubdomains="true">172.20.10.7</domain>
 
-        <!-- ESP8266 Door Control IP -->
+        <!-- ESP32-CAM (MỚI: 192.168.1.12) -->
+        <domain includeSubdomains="true">192.168.1.12</domain>
+
+        <!-- ESP8266 Door Control -->
         <domain includeSubdomains="true">172.20.10.2</domain>
 
-        <!-- Django Backend (nếu có) -->
+        <!-- Django Backend -->
         <domain includeSubdomains="true">10.73.58.26</domain>
 
         <!-- Localhost for testing -->
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
+
     </domain-config>
 </network-security-config>

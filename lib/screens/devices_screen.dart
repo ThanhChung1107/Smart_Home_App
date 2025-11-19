@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:PBL4_smart_home/services/device_service.dart';
 import 'package:PBL4_smart_home/models/device.dart'; // CHỈ IMPORT, KHÔNG ĐỊNH NGHĨA LẠI
+import 'dart:async';
 
 class DevicesScreen extends StatefulWidget {
   @override
@@ -11,11 +12,78 @@ class _DevicesScreenState extends State<DevicesScreen> {
   List<Device> _devices = []; // Sử dụng Device từ models/device.dart
   bool _isLoading = false;
   String _errorMessage = '';
+  Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
     _loadDevicesFromAPI();
+    _startPeriodicSync();
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel(); // ✅ Dừng timer khi dispose
+    super.dispose();
+  }
+  void _startPeriodicSync() {
+    _syncTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      _syncDevicesQuietly();
+    });
+  }
+  Future<void> _syncDevicesQuietly() async {
+    final result = await DeviceService.syncDeviceStatus();
+
+    if (result['success'] == true) {
+      // Reload devices sau khi sync
+      final devicesResult = await DeviceService.getDevices();
+
+      if (devicesResult['success'] == true && mounted) {
+        setState(() {
+          _devices = List<Device>.from(devicesResult['devices']);
+        });
+
+        print('🔄 Synced ${result['synced_count'] ?? 0} devices');
+      }
+    }
+  }
+
+  /// Đồng bộ thủ công (có loading, có thông báo)
+  Future<void> _syncDevicesManually() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await DeviceService.syncDeviceStatus();
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result['success'] == true) {
+      // Reload devices
+      await _loadDevicesFromAPI();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Đã đồng bộ ${result['synced_count'] ?? 0} thiết bị'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${result['message']}'),
+            backgroundColor: Color(0xFFEF4444),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadDevicesFromAPI() async {
@@ -142,6 +210,11 @@ class _DevicesScreenState extends State<DevicesScreen> {
         elevation: 0,
         centerTitle: false,
         actions: [
+          IconButton(
+            icon: Icon(Icons.sync),
+            onPressed: _syncDevicesManually,
+            tooltip: 'Đồng bộ trạng thái',
+          ),
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: _loadDevicesFromAPI,

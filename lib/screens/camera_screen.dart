@@ -11,7 +11,7 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isRecording = false;
   bool _isFrontDoorLocked = true;
   bool _isLoading = true;
-  String _cameraIp = "172.20.10.2";
+  String _cameraIp = "192.168.1.12";
   late WebViewController _webViewController;
   double _loadingProgress = 0;
 

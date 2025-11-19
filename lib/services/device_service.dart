@@ -78,7 +78,38 @@ class DeviceService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
+  static Future<Map<String, dynamic>> syncDeviceStatus({String? deviceId}) async {
+    try {
+      final headers = await AuthService.getHeaders();
+      headers['Content-Type'] = 'application/json';
 
+      final body = deviceId != null ? {'device_id': deviceId} : {};
+
+      print('🔄 Syncing device status${deviceId != null ? " for device $deviceId" : " (all devices)"}...');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/devices/sync/'),
+        headers: headers,
+        body: json.encode(body),
+      ).timeout(Duration(seconds: 10));
+
+      print('📡 Sync Response status: ${response.statusCode}');
+      print('📦 Sync Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Lỗi server: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('❌ Sync error: $e');
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
 // THÊM METHOD để lấy sensor data
   static Future<Map<String, dynamic>> getSensorData() async {
     try {
