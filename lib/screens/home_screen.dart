@@ -6,12 +6,39 @@ import 'package:PBL4_smart_home/screens/statistics_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/weather_service.dart'; // Import service mới
 import 'package:PBL4_smart_home/models/user.dart';
 import 'camera_screen.dart';
 import 'devices_screen.dart';
 import 'login_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? weatherData;
+  bool isLoadingWeather = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeatherData();
+  }
+
+  Future<void> _loadWeatherData() async {
+    setState(() => isLoadingWeather = true);
+
+    // Thay 'Dong Ha' bằng thành phố của bạn
+    final data = await WeatherService.getWeatherByCity('Dong Ha');
+
+    setState(() {
+      weatherData = data;
+      isLoadingWeather = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -59,230 +86,349 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          // User Info Card - Premium Style
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF6366F1),
-                      Color(0xFF8B5CF6),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF6366F1).withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: Offset(0, 10),
+      body: RefreshIndicator(
+        onRefresh: _loadWeatherData,
+        child: CustomScrollView(
+          slivers: [
+            // User Info Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF6366F1),
+                        Color(0xFF8B5CF6),
+                      ],
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      // Avatar
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Colors.white.withOpacity(0.9),
-                          backgroundImage: user?.avatar != null
-                              ? NetworkImage('http://your-server-ip:8000${user!.avatar!}')
-                              : null,
-                          child: user?.avatar == null
-                              ? Icon(Icons.person, size: 32, color: Color(0xFF6366F1))
-                              : null,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      // User Info
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user?.username ?? 'Người dùng',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              user?.email ?? '',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.8),
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
-                                ),
-                              ),
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              child: Text(
-                                user?.role == 'admin' ? '👑 Chủ nhà'
-                                    : user?.role == 'member' ? '👥 Thành viên'
-                                    : '👤 Khách',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xFF6366F1).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Colors.white.withOpacity(0.9),
+                            backgroundImage: user?.avatar != null
+                                ? NetworkImage('http://192.168.1.7:8000${user!.avatar!}')
+                                : null,
+                            child: user?.avatar == null
+                                ? Icon(Icons.person, size: 32, color: Color(0xFF6366F1))
+                                : null,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user?.username ?? 'Người dùng',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                user?.email ?? '',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.8),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                child: Text(
+                                  user?.role == 'admin' ? '👑 Chủ nhà'
+                                      : user?.role == 'member' ? '👥 Thành viên'
+                                      : '👤 Khách',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Section Title
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text(
-                'Các tính năng',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
-                  letterSpacing: 0.5,
+            // Weather Card - PHẦN MỚI
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: _buildWeatherCard(),
+              ),
+            ),
+
+            // Section Title
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Text(
+                  'Các tính năng',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Features Grid
-          SliverPadding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverGrid.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.95,
-              children: [
-                _buildFeatureCard(
-                  icon: Icons.devices_outlined,
-                  title: 'Thiết bị',
-                  subtitle: 'Điều khiển',
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
-                  iconColor: Color(0xFF10B981),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => DevicesScreen()),
-                    );
-                  },
-                ),
-                _buildFeatureCard(
-                  icon: Icons.security_outlined,
-                  title: 'Cảnh báo',
-                  subtitle: 'Người lạ',
-                  colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                  iconColor: Color(0xFFF59E0B),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => SecurityScreen()),
-                    );
-                  },
-                ),
-                _buildFeatureCard(
-                  icon: Icons.analytics_outlined,
-                  title: 'Thống kê',
-                  subtitle: 'Năng lượng',
-                  colors: [Color(0xFFFCD34D), Color(0xFFF59E0B)],
-                  iconColor: Color(0xFFFCD34D),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => StatisticsScreen()),
-                    );
-                  },
-                ),
-                _buildFeatureCard(
-                  icon: Icons.schedule_outlined,
-                  title: 'Lịch trình',
-                  subtitle: 'Tự động',
-                  colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-                  iconColor: Color(0xFFEF4444),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ScheduleScreen()),
-                    );
-                  },
-                ),
-                _buildFeatureCard(
-                  icon: Icons.camera_indoor_outlined,
-                  title: 'Camera',
-                  subtitle: 'Giám sát',
-                  colors: [Color(0xFFA855F7), Color(0xFF9333EA)],
-                  iconColor: Color(0xFFA855F7),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CameraScreen()),
-                    );
-                  },
-                ),
-                _buildFeatureCard(
-                  icon: Icons.settings_outlined,
-                  title: 'Cài đặt',
-                  subtitle: 'Hệ thống',
-                  colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                  iconColor: Color(0xFF3B82F6),
-                  context: context,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => SettingsScreen()),
-                    );
-                  },
-                ),
-              ],
+            // Features Grid
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverGrid.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.95,
+                children: [
+                  _buildFeatureCard(
+                    icon: Icons.devices_outlined,
+                    title: 'Thiết bị',
+                    subtitle: 'Điều khiển',
+                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    iconColor: Color(0xFF10B981),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DevicesScreen())),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.security_outlined,
+                    title: 'Cảnh báo',
+                    subtitle: 'Người lạ',
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                    iconColor: Color(0xFFF59E0B),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SecurityScreen())),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.analytics_outlined,
+                    title: 'Thống kê',
+                    subtitle: 'Năng lượng',
+                    colors: [Color(0xFFFCD34D), Color(0xFFF59E0B)],
+                    iconColor: Color(0xFFFCD34D),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => StatisticsScreen())),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.schedule_outlined,
+                    title: 'Lịch trình',
+                    subtitle: 'Tự động',
+                    colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                    iconColor: Color(0xFFEF4444),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ScheduleScreen())),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.camera_indoor_outlined,
+                    title: 'Camera',
+                    subtitle: 'Giám sát',
+                    colors: [Color(0xFFA855F7), Color(0xFF9333EA)],
+                    iconColor: Color(0xFFA855F7),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => CameraScreen())),
+                  ),
+                  _buildFeatureCard(
+                    icon: Icons.settings_outlined,
+                    title: 'Cài đặt',
+                    subtitle: 'Hệ thống',
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    iconColor: Color(0xFF3B82F6),
+                    context: context,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsScreen())),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Bottom spacing
-          SliverToBoxAdapter(
-            child: SizedBox(height: 24),
+            SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget hiển thị thông tin thời tiết
+  Widget _buildWeatherCard() {
+    if (isLoadingWeather) {
+      return Container(
+        height: 120,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (weatherData == null || weatherData!['success'] != true) {
+      return Container(
+        height: 120,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF6B7280), Color(0xFF4B5563)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.white, size: 32),
+              SizedBox(height: 8),
+              Text(
+                'Không thể tải thời tiết',
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              TextButton(
+                onPressed: _loadWeatherData,
+                child: Text('Thử lại', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final temp = weatherData!['temperature']?.toStringAsFixed(1) ?? '--';
+    final humidity = weatherData!['humidity']?.toStringAsFixed(0) ?? '--';
+    final description = weatherData!['description'] ?? '';
+    final cityName = weatherData!['city_name'] ?? '';
+    final icon = weatherData!['icon'] ?? '01d';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF3B82F6).withOpacity(0.3),
+            blurRadius: 15,
+            offset: Offset(0, 8),
           ),
         ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Row(
+          children: [
+            // Icon thời tiết
+            Image.network(
+              WeatherService.getIconUrl(icon),
+              width: 80,
+              height: 80,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(Icons.wb_sunny, size: 60, color: Colors.white);
+              },
+            ),
+            SizedBox(width: 16),
+            // Thông tin thời tiết
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: Colors.white70, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        cityName,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '$temp°C',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    description.toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.water_drop_outlined, color: Colors.white70, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Độ ẩm: $humidity%',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -322,7 +468,6 @@ class HomeScreen extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // Background decoration
                 Positioned(
                   right: -20,
                   top: -20,
@@ -335,14 +480,12 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Content
                 Padding(
                   padding: EdgeInsets.all(16),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Icon container
                       Container(
                         padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -352,14 +495,9 @@ class HomeScreen extends StatelessWidget {
                             color: Colors.white.withOpacity(0.3),
                           ),
                         ),
-                        child: Icon(
-                          icon,
-                          size: 32,
-                          color: Colors.white,
-                        ),
+                        child: Icon(icon, size: 32, color: Colors.white),
                       ),
                       SizedBox(height: 12),
-                      // Title
                       Text(
                         title,
                         style: TextStyle(
@@ -371,7 +509,6 @@ class HomeScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 4),
-                      // Subtitle
                       Text(
                         subtitle,
                         style: TextStyle(

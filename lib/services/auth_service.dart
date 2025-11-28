@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://192.168.1.7:8000';
+  static const String baseUrl = 'http://192.168.1.12:8000';
   static String? sessionCookie;
 
   // Method kiểm tra đăng nhập
